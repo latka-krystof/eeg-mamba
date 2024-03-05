@@ -7,10 +7,11 @@ from dataset import EEGDataset
 import numpy as np
 from models.mlp import MLP
 from models.rnn import RNN
+from models.cnn import CNN
 
 
 def train(experiment_name):
-    
+
     if experiment_name == "mlp_small_no_data_aug":
        
         transform = None
@@ -21,7 +22,8 @@ def train(experiment_name):
         train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True)
         
-        model = MLP([1000*22, 1000, 100, 4])
+        # model = MLP([1000*22, 1000, 100, 4])
+        model = CNN()
         optimizer = optim.AdamW(model.parameters(), lr=0.00001)
         criterion = nn.CrossEntropyLoss()
         
