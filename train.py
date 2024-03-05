@@ -10,6 +10,7 @@ from models.rnn import RNN
 
 
 def train(experiment_name):
+    
     if experiment_name == "mlp_small_no_data_aug":
        
         transform = None
@@ -25,6 +26,7 @@ def train(experiment_name):
         criterion = nn.CrossEntropyLoss()
         
         model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=10)
+
     elif experiment_name == "rnn_small_no_data_aug":
         
         transform = None

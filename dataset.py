@@ -12,9 +12,8 @@ class EEGDataset(Dataset):
             self.X = torch.tensor(np.load("eeg_data/X_test.npy"))
             self.y = torch.tensor(np.load("eeg_data/y_test.npy")).long()
             self.person_ids = torch.tensor(np.load("eeg_data/person_test.npy")).long()
+            
         self.y = self.y - 769
-        # one hot encode 0,1,2,3
-        self.y = torch.nn.functional.one_hot(self.y, num_classes=4)
     
         self.transform = transform
     
