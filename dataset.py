@@ -3,15 +3,15 @@ from torch.utils.data import Dataset
 import numpy as np
 
 class EEGDataset(Dataset):
-    def __init__(self, train=True, transform=None):
+    def __init__(self, train=True, transform=None, device="cpu"):
         if train:
-            self.X = torch.tensor(np.load("eeg_data/X_train_valid.npy"))
-            self.y = torch.tensor(np.load("eeg_data/y_train_valid.npy")).long()
-            self.person_ids = torch.tensor(np.load("eeg_data/person_train_valid.npy")).long()
+            self.X = torch.tensor(np.load("eeg_data/X_train_valid.npy")).to(device)
+            self.y = torch.tensor(np.load("eeg_data/y_train_valid.npy")).long().to(device)
+            self.person_ids = torch.tensor(np.load("eeg_data/person_train_valid.npy")).long().to(device)
         else:
-            self.X = torch.tensor(np.load("eeg_data/X_test.npy"))
-            self.y = torch.tensor(np.load("eeg_data/y_test.npy")).long()
-            self.person_ids = torch.tensor(np.load("eeg_data/person_test.npy")).long()
+            self.X = torch.tensor(np.load("eeg_data/X_test.npy")).to(device)
+            self.y = torch.tensor(np.load("eeg_data/y_test.npy")).long().to(device)
+            self.person_ids = torch.tensor(np.load("eeg_data/person_test.npy")).long().to(device)
             
         self.y = self.y - 769
     

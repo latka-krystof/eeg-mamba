@@ -22,7 +22,7 @@ class Transformer(nn.Module):
         x = self.transformer_encoder(x)
         x = x.mean(dim=0)  # Aggregate over time
         x = self.fc(x)
-        return F.log_softmax(x, dim=1)
+        return x
     
     def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100):
         

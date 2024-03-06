@@ -71,25 +71,25 @@ class EEGNet(nn.Module):
         for epoch in range(num_epochs):
             self.train()
 
-            with tqdm(total=len(train_loader), desc=f'Epoch {epoch + 1}/{num_epochs}',
-                  position=0, leave=True) as pbar:
+            # with tqdm(total=len(train_loader), desc=f'Epoch {epoch + 1}/{num_epochs}',
+            #       position=0, leave=True) as pbar:
                 
-                avg_loss = 0
-                for batch in train_loader:
-                    inputs, labels = batch
-                    inputs = inputs.float().unsqueeze(1)
-                    labels = labels.long()
-                    optimizer.zero_grad()
-                    outputs = self.forward(inputs)
-                    loss = criterion(outputs, labels)
-                    loss.backward()
-                    optimizer.step()
-                    avg_loss += loss
+            avg_loss = 0
+            for batch in train_loader:
+                inputs, labels = batch
+                inputs = inputs.float().unsqueeze(1)
+                labels = labels.long()
+                optimizer.zero_grad()
+                outputs = self.forward(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+                avg_loss += loss
 
-                    pbar.update(1)
-                    pbar.set_postfix(loss=loss.item())
+                # pbar.update(1)
+                # pbar.set_postfix(loss=loss.item())
 
-                print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
+                # print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
             
             val_loss, accuracy = self.run_eval(val_loader, criterion)
             print(f"Epoch {epoch + 1} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
