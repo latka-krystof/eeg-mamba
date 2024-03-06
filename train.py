@@ -8,11 +8,13 @@ import numpy as np
 from models.mlp import MLP
 from models.rnn import RNN
 from models.cnn import CNN
+from models.lstm import LSTM
 
 
 def train(experiment_name):
-
-    if experiment_name == "mlp_small_no_data_aug":
+    print("Running experiment: ", experiment_name)
+    
+    if experiment_name == "cnn":
        
         transform = None
        
@@ -22,15 +24,45 @@ def train(experiment_name):
         train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True)
         
-        # model = MLP([1000*22, 1000, 100, 4])
         model = CNN()
         optimizer = optim.AdamW(model.parameters(), lr=0.00001)
         criterion = nn.CrossEntropyLoss()
         
         model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=10)
 
-    elif experiment_name == "rnn_small_no_data_aug":
+    elif experiment_name == "rnn":
         
+        transform = None
+       
+        train_dataset = EEGDataset(train=True, transform=transform)
+        test_dataset = EEGDataset(train=False, transform=transform)
+        
+        train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=128, shuffle=True)
+        
+        model = RNN(input_size=22, hidden_size=200, num_layers=2, num_classes=4)
+        optimizer = optim.AdamW(model.parameters(), lr=0.00001)
+        criterion = nn.CrossEntropyLoss()
+        
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=10)
+    
+    elif experiment_name == "mlp":
+        
+        transform = None
+        
+        train_dataset = EEGDataset(train=True, transform=transform)
+        test_dataset = EEGDataset(train=False, transform=transform)
+        
+        train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True)
+        
+        model = MLP([1000*22, 1000, 100, 4])
+        optimizer = optim.AdamW(model.parameters(), lr=0.00001)
+        criterion = nn.CrossEntropyLoss()
+        
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=10)
+        
+    elif experiment_name == "lstm":
         transform = None
        
         train_dataset = EEGDataset(train=True, transform=transform)
@@ -39,18 +71,20 @@ def train(experiment_name):
         train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True)
         
-        model = RNN(input_size=22, hidden_size=100, num_layers=2, num_classes=4)
+        model = LSTM(input_size=22, hidden_size=100, num_layers=2, num_classes=4, device="cpu")
         optimizer = optim.AdamW(model.parameters(), lr=0.00001)
         criterion = nn.CrossEntropyLoss()
         
         model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=10)
         
-
+        
         
         
 if __name__ == "__main__":
-    train("mlp_small_no_data_aug")
-    # train("rnn_small_no_data_aug")
+    train("lstm")
+    train("rnn")
+    train("mlp")
+    train("cnn")
 
 
 
