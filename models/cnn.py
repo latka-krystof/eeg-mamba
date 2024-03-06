@@ -5,28 +5,47 @@ import torch.nn.functional as F
 
 class CNN(nn.Module):
 
-    def __init__(self, num_classes=4):
+    def __init__(self, num_classes=4, f1=32, f2=64, f3=128, dropout=0.2, chans=22, samples=1000):
         super(CNN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, kernel_size=3)
-        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.conv2 = nn.Conv2d(6, 16, kernel_size=3)
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc1 = nn.Linear(16 * 4 * 248, 1000)
-        self.fc2 = nn.Linear(1000, 120)
-        self.fc3 = nn.Linear(120, 84)
-        self.fc4 = nn.Linear(84, num_classes)
+
+        self.layer1 = nn.Sequential(
+            nn.Conv1d(chans, f1, kernel_size=3, padding='same'),
+            nn.MaxPool1d(kernel_size=2, stride=2),
+            nn.BatchNorm1d(f1),
+            nn.Dropout(dropout)
+        )
+        self.layer2 = nn.Sequential(
+            nn.Conv1d(f1, f2, kernel_size=3, padding='same'),
+            nn.MaxPool1d(kernel_size=2, stride=2),
+            nn.BatchNorm1d(f2),
+            nn.Dropout(dropout)
+        )
+        self.layer3 = nn.Sequential(
+            nn.Conv1d(f2, f3, kernel_size=3, padding='same'),
+            nn.MaxPool1d(kernel_size=2, stride=2),
+            nn.BatchNorm1d(f3),
+            nn.Dropout(dropout)
+        )
+        self.fc1 = nn.Linear(f3 * (samples // 8), 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 64)
+        self.fc4 = nn.Linear(64, num_classes)
+
+        self.dropout = dropout
     
     def forward(self, x):
-        x = self.pool1(F.relu(self.conv1(x)))
-        x = self.pool2(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 4 * 248)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = self.fc4(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = torch.flatten(x, start_dim=1)
+        x = F.dropout(F.relu(self.fc1(x)), p=self.dropout) 
+        x = F.dropout(F.relu(self.fc2(x)), p=self.dropout)   
+        x = F.dropout(F.relu(self.fc3(x)), p=self.dropout) 
+        x = F.dropout(F.relu(self.fc4(x)), p=self.dropout) 
+        x = F.softmax(x, dim=-1)
         return x
     
-    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=10):
+    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100):
         
         for epoch in range(num_epochs):
             self.train()
@@ -37,7 +56,7 @@ class CNN(nn.Module):
                 avg_loss = 0
                 for batch in train_loader:
                     inputs, labels = batch
-                    inputs = inputs.float().unsqueeze(1)
+                    inputs = inputs.float()
                     labels = labels.long()
                     optimizer.zero_grad()
                     outputs = self.forward(inputs)
@@ -49,7 +68,7 @@ class CNN(nn.Module):
                     pbar.update(1)
                     pbar.set_postfix(loss=loss.item())
 
-                print(f"Epoch {epoch} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
+                print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
             
             val_loss, accuracy = self.run_eval(val_loader, criterion)
             print(f"Epoch {epoch + 1} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
@@ -65,7 +84,7 @@ class CNN(nn.Module):
             for batch in val_loader:
 
                 inputs, labels = batch
-                inputs = inputs.float().unsqueeze(1)
+                inputs = inputs.float()
                 labels = labels.long()
                 outputs = self.forward(inputs)
                 val_loss += criterion(outputs, labels)
