@@ -15,9 +15,10 @@ class MLP(nn.Module):
         for layer in self.layers:
             x = F.relu(layer(x))
             x = F.dropout(x, self.dropout)
+        x = F.softmax(x, dim=-1)
         return x
     
-    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=10):
+    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100):
         
         for epoch in range(num_epochs):
             self.train()
@@ -40,10 +41,10 @@ class MLP(nn.Module):
                     pbar.update(1)
                     pbar.set_postfix(loss=loss.item())
 
-                print(f"Epoch {epoch} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
+                print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
             
             val_loss, accuracy = self.run_eval(val_loader, criterion)
-            print(f"Epoch {epoch} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
+            print(f"Epoch {epoch + 1} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
     
     def run_eval(self, val_loader, criterion):
 
