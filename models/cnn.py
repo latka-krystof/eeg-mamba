@@ -5,31 +5,51 @@ import torch.nn.functional as F
 
 class CNN(nn.Module):
 
-    def __init__(self, num_classes=4, f1=32, f2=64, f3=128, dropout=0.2, chans=22, samples=1000):
+    def __init__(self, num_classes=4, f1=64, f2=128, f3=256, dropout=0.2, chans=22, width=63, height=129):
         super(CNN, self).__init__()
 
         self.layer1 = nn.Sequential(
-            nn.Conv1d(chans, f1, kernel_size=3, padding='same'),
-            nn.MaxPool1d(kernel_size=2, stride=2),
-            nn.BatchNorm1d(f1),
+            nn.Conv2d(in_channels=chans, out_channels=f1, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.BatchNorm2d(f1),
             nn.Dropout(dropout)
         )
         self.layer2 = nn.Sequential(
-            nn.Conv1d(f1, f2, kernel_size=3, padding='same'),
-            nn.MaxPool1d(kernel_size=2, stride=2),
-            nn.BatchNorm1d(f2),
+            nn.Conv2d(in_channels=f1, out_channels=f2, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.BatchNorm2d(f2),
             nn.Dropout(dropout)
         )
         self.layer3 = nn.Sequential(
-            nn.Conv1d(f2, f3, kernel_size=3, padding='same'),
-            nn.MaxPool1d(kernel_size=2, stride=2),
-            nn.BatchNorm1d(f3),
+            nn.Conv2d(in_channels=f2, out_channels=f3, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.BatchNorm2d(f3),
             nn.Dropout(dropout)
         )
-        self.fc1 = nn.Linear(f3 * (samples // 8), 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 64)
-        self.fc4 = nn.Linear(64, num_classes)
+        self.fc1 = nn.Sequential(
+            nn.Linear(f3 * (width // 8) * (height // 8), 1024),
+            nn.ReLU(),
+            nn.BatchNorm1d(1024),
+            nn.Dropout(dropout)
+        )
+        self.fc2 = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.BatchNorm1d(512),
+            nn.Dropout(dropout)
+        )
+        self.fc3 = nn.Sequential(
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.BatchNorm1d(128),
+            nn.Dropout(dropout)
+        )
+        self.fc4 = nn.Sequential(
+            nn.Linear(128, num_classes)
+        )
 
         self.dropout = dropout
     
@@ -38,11 +58,10 @@ class CNN(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = torch.flatten(x, start_dim=1)
-        x = F.dropout(F.relu(self.fc1(x)), p=self.dropout) 
-        x = F.dropout(F.relu(self.fc2(x)), p=self.dropout)   
-        x = F.dropout(F.relu(self.fc3(x)), p=self.dropout) 
-        x = F.dropout(F.relu(self.fc4(x)), p=self.dropout) 
-        x = F.softmax(x, dim=-1)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.fc3(x)
+        x = self.fc4(x)
         return x
     
     def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100):
@@ -59,7 +78,7 @@ class CNN(nn.Module):
                     inputs = inputs.float()
                     labels = labels.long()
                     optimizer.zero_grad()
-                    outputs = self.forward(inputs)
+                    outputs = self(inputs)
                     loss = criterion(outputs, labels)
                     loss.backward()
                     optimizer.step()

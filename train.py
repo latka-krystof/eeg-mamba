@@ -13,6 +13,7 @@ from models.eeg_net import EEGNet
 from models.gru import GRU
 from models.transformer import Transformer
 from models.mamba_eeg import MambaEEG
+from data_utils.timeseries_transforms import Spectrogram
 
 def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
 
@@ -36,7 +37,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
     elif experiment_name == "cnn":
 
         if transforms:
-            pass # apply transforms associated with specific model
+            transform = Spectrogram(n_fft=256, win_length=256, hop_length=16, window_fn=torch.hamming_window)
         else:
             transform = None
 
