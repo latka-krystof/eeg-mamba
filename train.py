@@ -13,6 +13,7 @@ from models.eeg_net import EEGNet
 from models.gru import GRU
 from models.transformer import Transformer
 from models.mamba_eeg import MambaEEG
+from models.mamba_eeg_net import MambaDepthWiseEEG
 
 def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
 
@@ -152,16 +153,33 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         optimizer = optim.AdamW(model.parameters(), lr=lr)
         model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
         
+    elif experiment_name == "mamba_eeg":
+
+        if transforms:
+            pass
+        else:
+            transform = None
+        
+        train_dataset = EEGDataset(train=True, transform=transform, device=device)
+        test_dataset = EEGDataset(train=False, transform=transform, device=device)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        criterion = nn.CrossEntropyLoss()
+        
+        model = MambaDepthWiseEEG().to(device)
+        optimizer = optim.AdamW(model.parameters(), lr=lr)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+    
         
         
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train EEG classification models')
     parser.add_argument('experiment', type=str, help='Name of the experiment/model to train')
-    parser.add_argument('--num_epochs', type=int, default=10, help='Number of epochs for training (default: 10)')
+    parser.add_argument('--num_epochs', type=int, default=1000, help='Number of epochs for training (default: 10)')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training (default: 64)')
-    parser.add_argument('--lr', type=float, default=0.00001, help='Learning rate for optimizer (default: 0.00001)')
-    parser.add_argument('--device', type=str, default="cpu", help='Apply data transformations (default: cpu)')
+    parser.add_argument('--lr', type=float, default=0.000003, help='Learning rate for optimizer (default: 0.00001)')
+    parser.add_argument('--device', type=str, default="cuda", help='Apply data transformations (default: cpu)')
     parser.add_argument('--transforms', action='store_true', help='Apply data transformations (default: False)')
     
     args = parser.parse_args()
