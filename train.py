@@ -3,6 +3,7 @@ import argparse
 from torch.utils.data import Dataset, DataLoader
 from torch import nn
 from torch import optim
+from torch.optim.lr_scheduler import StepLR
 from dataset import EEGDataset
 import numpy as np
 from models.mlp import MLP
@@ -13,7 +14,8 @@ from models.eeg_net import EEGNet
 from models.gru import GRU
 from models.transformer import Transformer
 from models.mamba_eeg import MambaEEG
-from data_utils.timeseries_transforms import Spectrogram
+from data_utils.timeseries_transforms import Spectrogram, Stacking
+import matplotlib.pyplot as plt
 from models.mamba_eeg_net import MambaDepthWiseEEG
 
 def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
@@ -38,19 +40,26 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
     elif experiment_name == "cnn":
 
         if transforms:
-            transform = Spectrogram(n_fft=256, win_length=256, hop_length=16, window_fn=torch.hamming_window)
+            transform = Stacking()
         else:
             transform = None
 
-        train_dataset = EEGDataset(train=True, transform=transform, device=device)
-        test_dataset = EEGDataset(train=False, transform=transform, device=device)
+        train_dataset = EEGDataset(train=True, transform=transform)
+        test_dataset = EEGDataset(train=False, transform=transform)
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
         criterion = nn.CrossEntropyLoss()
-        
-        model = CNN().to(device)
-        optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model = CNN(device=device)
+        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-1)
+        scheduler = StepLR(optimizer, step_size=25, gamma=0.5)
+        train_losses, test_losses, train_accuracies, test_accuracies = model.run_train(train_loader, test_loader, criterion, optimizer, scheduler, num_epochs=num_epochs)
+
+        return {
+            "train_losses": train_losses,
+            "test_losses": test_losses,
+            "train_accuracies": train_accuracies,
+            "test_accuracies": test_accuracies
+        }
 
     elif experiment_name == "rnn":
 
@@ -185,5 +194,24 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    train(args.experiment, args.num_epochs, args.batch_size, args.lr, args.transforms, args.device)
+    stats = train(args.experiment, args.num_epochs, args.batch_size, args.lr, args.transforms, args.device)
     
+    if stats:
+        train_losses = stats["train_losses"]
+        test_losses = stats["test_losses"]
+        train_accuracies = stats["train_accuracies"]
+        test_accuracies = stats["test_accuracies"]
+
+        plt.figure()
+        plt.plot(train_losses, label="Average train Loss")
+        plt.plot(test_losses, label="Average test Loss")
+        plt.xlabel("Epoch")
+        plt.legend()
+        plt.show()
+
+        plt.figure()
+        plt.plot(train_accuracies, label="Train Accuracy")
+        plt.plot(test_accuracies, label="Test Accuracy")
+        plt.xlabel("Epoch")
+        plt.legend()
+        plt.show()
