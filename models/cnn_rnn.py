@@ -3,7 +3,7 @@ from training_utils.loops import run_eval, run_train
 
 class CNN_RNN(nn.Module):
 
-    def __init__(self, num_classes=4, dropout=0.65, rnn_dropout=0.4, hidden_size=128, num_layers=2, device='cuda'):
+    def __init__(self, num_classes=4, dropout=0.65, rnn_dropout=0.4, hidden_size=128, num_layers=1, device='cuda'):
         super(CNN_RNN, self).__init__()
 
         self.device = device
@@ -45,7 +45,7 @@ class CNN_RNN(nn.Module):
             nn.Linear(hidden_size, num_classes)
         )
 
-        self.gru = nn.GRU(11, hidden_size, num_layers, batch_first=True, dropout=rnn_dropout)
+        self.gru = nn.GRU(11, hidden_size, num_layers, batch_first=True)
 
     def forward(self, x):
 
