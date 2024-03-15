@@ -302,6 +302,7 @@ def hyperparam_sweep(config=None):
     step_size = wandb.config.step_size
     gamma = wandb.config.gamma
     dropout = wandb.config.dropout
+    hidden_size = wandb.config.hidden_size
 
     transform = None
     
@@ -309,7 +310,7 @@ def hyperparam_sweep(config=None):
         val=0.1, batch_size=batch_size, transform=transform
     )
 
-    model = CNN_1D(dropout=dropout, device='cuda')
+    model = CNN_RNN(dropout=dropout, hidden_size=hidden_size, device='cuda')
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -352,7 +353,8 @@ if __name__ == "__main__":
                 "epochs": {"values": [60, 80, 100, 120]},
                 "step_size": {"values": [10, 20, 30]},
                 "gamma": {"values": [0.1, 0.2, 0.3]},
-                "dropout": {"values": [0.5, 0.6, 0.7, 0.8]}
+                "dropout": {"values": [0.5, 0.6, 0.7, 0.8]},
+                "hidden_size": {"values": [64, 128, 256]}
             },
             "early_terminate": {
                 "type": "hyperband",
