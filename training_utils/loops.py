@@ -87,7 +87,7 @@ def run_eval(model, train_loader, val_loader, criterion, unsqueeze=False):
 
         return avg_loss, accuracy_val, accuracy_train
 
-def run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=100, unsqueeze=False, progress_bar=True, progress=True):
+def run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=100, unsqueeze=False, progress_bar=True, progress=True, sweep=False):
         
         train_losses = []
         val_losses = []
@@ -158,8 +158,9 @@ def run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, 
             
             val_loss, val_accuracy, train_accuracy = run_eval(model, train_loader, val_loader, criterion, unsqueeze=unsqueeze)
 
-            # wandb.log({'train_loss': train_loss, 'val_loss': val_loss, 
-            #     'val_accuracy': val_accuracy, 'train_accuracy': train_accuracy})
+            if sweep:
+                wandb.log({'train_loss': train_loss, 'val_loss': val_loss, 
+                    'val_accuracy': val_accuracy, 'train_accuracy': train_accuracy})
             
             val_losses.append(val_loss.to('cpu'))
             val_accuracies.append(val_accuracy)

@@ -315,7 +315,7 @@ def hyperparam_sweep(config=None):
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
 
-    train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=epochs, unsqueeze=False, progress_bar=True, progress=True)
+    train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=epochs, unsqueeze=False, progress_bar=True, progress=True, sweep=True)
 
     test_accuracy = run_testing(model, test_loader, criterion, unsqueeze=False)
     print(f"Test accuracy: {test_accuracy:.2f}%")
@@ -330,30 +330,6 @@ def hyperparam_sweep(config=None):
         
 if __name__ == "__main__":
 
-    # sweep_configuration = {
-    #     "method": "bayes",
-    #     "metric": {"goal": "maximize", "name": "val_accuracy"},
-    #     "parameters": {
-    #         "batch_size": {"values": [32, 64, 128]},
-    #         "lr": {"min": 0.000001, "max": 0.001, "distribution": "uniform"},
-    #         "weight_decay": {"min": 0.001, "max": 0.01, "distribution": "uniform"},
-    #         "epochs": {"values": [60, 80, 100, 120]},
-    #         "step_size": {"values": [10, 20, 30]},
-    #         "gamma": {"values": [0.1, 0.2, 0.3]},
-    #         "dropout": {"values": [0.5, 0.6, 0.7, 0.8]}
-    #     },
-    #     "early_terminate": {
-    #         "type": "hyperband",
-    #         "s": 2, 
-    #         "eta": 3,
-    #         "max_iter": 27
-    #     }
-    # }
-
-    # wandb.login()
-    # sweep_id = wandb.sweep(sweep_configuration, project='c147_eeg_testing')
-    # wandb.agent(sweep_id, function=hyperparam_sweep)
-
     parser = argparse.ArgumentParser(description='Train EEG classification models')
     parser.add_argument('experiment', type=str, help='Name of the experiment/model to train')
     parser.add_argument('--num_epochs', type=int, default=1000, help='Number of epochs for training (default: 10)')
@@ -363,25 +339,53 @@ if __name__ == "__main__":
     parser.add_argument('--transforms', action='store_true', help='Apply data transformations (default: False)')
     
     args = parser.parse_args()
-    
-    stats = train(args.experiment, args.num_epochs, args.batch_size, args.lr, args.transforms, args.device)
-    
-    if stats:
-        train_losses = stats["train_losses"]
-        val_losses = stats["val_losses"]
-        train_accuracies = stats["train_accuracies"]
-        val_accuracies = stats["val_accuracies"]
 
-        plt.figure()
-        plt.plot(train_losses, label="Average train Loss")
-        plt.plot(val_losses, label="Average validation Loss")
-        plt.xlabel("Epoch")
-        plt.legend()
-        plt.show()
+    if args.experiment == 'sweep':
 
-        plt.figure()
-        plt.plot(train_accuracies, label="Train Accuracy")
-        plt.plot(val_accuracies, label="Validation Accuracy")
-        plt.xlabel("Epoch")
-        plt.legend()
-        plt.show()
+        sweep_configuration = {
+            "method": "bayes",
+            "metric": {"goal": "maximize", "name": "val_accuracy"},
+            "parameters": {
+                "batch_size": {"values": [32, 64, 128]},
+                "lr": {"min": 0.000001, "max": 0.001, "distribution": "uniform"},
+                "weight_decay": {"min": 0.001, "max": 0.01, "distribution": "uniform"},
+                "epochs": {"values": [60, 80, 100, 120]},
+                "step_size": {"values": [10, 20, 30]},
+                "gamma": {"values": [0.1, 0.2, 0.3]},
+                "dropout": {"values": [0.5, 0.6, 0.7, 0.8]}
+            },
+            "early_terminate": {
+                "type": "hyperband",
+                "s": 2, 
+                "eta": 3,
+                "max_iter": 27
+            }
+        }
+
+        wandb.login()
+        sweep_id = wandb.sweep(sweep_configuration, project='c147_eeg_testing')
+        wandb.agent(sweep_id, function=hyperparam_sweep)
+
+    else:
+    
+        stats = train(args.experiment, args.num_epochs, args.batch_size, args.lr, args.transforms, args.device)
+        
+        if stats:
+            train_losses = stats["train_losses"]
+            val_losses = stats["val_losses"]
+            train_accuracies = stats["train_accuracies"]
+            val_accuracies = stats["val_accuracies"]
+
+            plt.figure()
+            plt.plot(train_losses, label="Average train Loss")
+            plt.plot(val_losses, label="Average validation Loss")
+            plt.xlabel("Epoch")
+            plt.legend()
+            plt.show()
+
+            plt.figure()
+            plt.plot(train_accuracies, label="Train Accuracy")
+            plt.plot(val_accuracies, label="Validation Accuracy")
+            plt.xlabel("Epoch")
+            plt.legend()
+            plt.show()
