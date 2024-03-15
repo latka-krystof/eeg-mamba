@@ -38,7 +38,7 @@ class ResNet_1D(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv1d(22, 64, kernel_size=7, stride=2, padding=3),
             nn.BatchNorm1d(64),
-            nn.ReLU(),
+            nn.ELU(),
             nn.MaxPool1d(kernel_size=3, stride=2, padding=1)
         )
 
@@ -46,10 +46,11 @@ class ResNet_1D(nn.Module):
         self.layer2 = self.make_layer(64, 128, 2, stride=2)
         self.layer3 = self.make_layer(128, 256, 2, stride=2)
         self.layer4 = self.make_layer(256, 512, 2, stride=2)
+        self.layer5 = self.make_layer(512, 1024, 2, stride=2)
 
         self.fc = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.ReLU(),
+            nn.Linear(1024, 256),
+            nn.ELU(),
             nn.Dropout(dropout),
             nn.Linear(256, num_classes)
         )
@@ -74,6 +75,7 @@ class ResNet_1D(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
+        x = self.layer5(x)
         x = nn.functional.adaptive_avg_pool1d(x, 1)
         x = x.view(x.size(0), -1)
         x = self.fc(x)

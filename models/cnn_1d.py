@@ -41,7 +41,7 @@ class CNN_1D(nn.Module):
         )
 
         self.fc1 = nn.Sequential(
-            nn.Linear(10240, 1024),
+            nn.Linear(5632, 1024),
             nn.ELU(),
             nn.Dropout(dropout)
         )

@@ -89,8 +89,8 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         model = CNN_1D(device=device)
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-1)
-        scheduler = StepLR(optimizer, step_size=25, gamma=0.1)
+        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-1)
+        scheduler = StepLR(optimizer, step_size=25, gamma=0.5)
 
         train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, unsqueeze=False)
 
@@ -107,34 +107,31 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
     elif experiment_name == "resnet_1d":
             
         if transforms:
-            transform = Composite([
-                Trimming(0,500),
-                LowPassFilter(0.5),
-                GaussianNoise(),
-                Scaling(5),
-                Resample(750)
-            ])
+            transform = None
         else:
             transform = None
-
-        train_dataset = EEGDataset(train=True, transform=transform)
-        test_dataset = EEGDataset(train=False, transform=transform)
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        
+        train_loader, val_loader, test_loader = generate_dataloaders(
+            val=0.1, batch_size=batch_size, transform=transform
+        )
 
         model = ResNet_1D(device=device)
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-2)
-        scheduler = StepLR(optimizer, step_size=50, gamma=0.1)
+        # optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-1)
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-1)
+        scheduler = StepLR(optimizer, step_size=25, gamma=0.1)
 
-        train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, test_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, unsqueeze=False)
+        train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, unsqueeze=False)
+
+        test_accuracy = run_testing(model, test_loader, criterion, unsqueeze=False)
+        print(f"Test accuracy: {test_accuracy:.2f}%")
 
         return {
             "train_losses": train_losses,
-            "test_losses": val_losses,
+            "val_losses": val_losses,
             "train_accuracies": train_accuracies,
-            "test_accuracies": val_accuracies
+            "val_accuracies": val_accuracies
         }
 
 

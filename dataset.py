@@ -50,7 +50,7 @@ class NewEEGDataset(Dataset):
             total_y = None
 
             # Trimming
-            X_trim = self.X[:, :, 0:800]
+            X_trim = self.X[:, :, 0:500]
 
             # MaxPooling
             X_max = nn.MaxPool1d(kernel_size=2, stride=2)(X_trim)
@@ -80,7 +80,7 @@ class NewEEGDataset(Dataset):
             # Simple pre-processing to have matching dimensions with training set
             
             # Trimming
-            self.X = self.X[:, :, 0:800]
+            self.X = self.X[:, :, 0:500]
             # MaxPooling
             self.X = nn.MaxPool1d(kernel_size=2, stride=2)(self.X)
 
