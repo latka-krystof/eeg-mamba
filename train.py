@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 from training_utils.loops import run_train, run_testing
 
 
-def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
+def train(experiment_name, num_epochs=10, batch_size=64, lr=1e-3, transforms=None, device='cpu', progress_bar=True, progress=True):
 
     if experiment_name == "mlp":
 
@@ -92,7 +92,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-1)
         scheduler = StepLR(optimizer, step_size=25, gamma=0.5)
 
-        train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, unsqueeze=False)
+        train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, unsqueeze=False, progress_bar=progress_bar, progress=progress)
 
         test_accuracy = run_testing(model, test_loader, criterion, unsqueeze=False)
         print(f"Test accuracy: {test_accuracy:.2f}%")
