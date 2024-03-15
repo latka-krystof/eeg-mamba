@@ -3,7 +3,7 @@ import torch.nn as nn
 from tqdm import tqdm
 class CNN(nn.Module):
 
-    def __init__(self, num_classes=4, f1=32, f2=64, f3=128, dropout=0.65, chans=1, h=22, w=1000, device=None):
+    def __init__(self, num_classes=4, f1=32, f2=64, f3=128, dropout=0.65, chans=1, h=22, w=1000, device='cuda'):
         super(CNN, self).__init__()
 
         self.device = device

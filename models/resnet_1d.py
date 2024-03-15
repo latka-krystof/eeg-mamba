@@ -30,7 +30,7 @@ class ResBlock_1D(nn.Module):
 
 class ResNet_1D(nn.Module):
 
-    def __init__(self, num_classes=4, dropout=0.65, device = None):
+    def __init__(self, num_classes=4, dropout=0.65, device='cuda'):
         super(ResNet_1D, self).__init__()
 
         self.device = device

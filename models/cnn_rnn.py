@@ -1,10 +1,10 @@
 import torch.nn as nn
 from training_utils.loops import run_eval, run_train
 
-class CNN_1D(nn.Module):
+class CNN_RNN(nn.Module):
 
-    def __init__(self, num_classes=4, dropout=0.65, device='cuda'):
-        super(CNN_1D, self).__init__()
+    def __init__(self, num_classes=4, dropout=0.65, rnn_dropout=0.4, hidden_size=128, num_layers=2, device='cuda'):
+        super(CNN_RNN, self).__init__()
 
         self.device = device
 
@@ -40,20 +40,20 @@ class CNN_1D(nn.Module):
             nn.Dropout(dropout),
         )
 
-        self.fc1 = nn.Sequential(
-            nn.Linear(5632, 1024),
-            nn.ELU(),
-            nn.Dropout(dropout)
+        self.fc = nn.Sequential(
+            nn.Dropout(dropout),
+            nn.Linear(hidden_size, num_classes)
         )
 
-        self.fc2 = nn.Linear(1024, num_classes)
+        self.gru = nn.GRU(11, hidden_size, num_layers, batch_first=True, dropout=rnn_dropout)
 
     def forward(self, x):
+
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc1(x)
-        x = self.fc2(x)
+        x, _ = self.gru(x)
+        x = x[:, -1, :]
+        x = self.fc(x)
         return x
