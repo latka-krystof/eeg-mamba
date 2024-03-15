@@ -1,6 +1,7 @@
 from torchvision.transforms import v2
 from torchvision.transforms import functional as F
 import torchaudio.transforms as T
+import torch.nn as nn
 import torch
 import numpy as np
 from scipy.signal import resample
@@ -48,7 +49,7 @@ class FFT(object):
         return torch.fft.fft(x)
 
 class Trimming(object):
-    def __init__(self, start=750, end=1000):
+    def __init__(self, start=0, end=500):
         self.start = start
         self.end = end
 
@@ -108,18 +109,29 @@ class Stacking(object):
         pass
 
     def __call__(self, x):
+        x = x[:, :500]
         resampled = resample(x, 750, axis=1)
         resampled = torch.tensor(resampled)
         resampled = resampled + torch.randn_like(torch.tensor(resampled))
         return torch.tensor(np.vstack(resampled))
-    
-class SingleChannel(object):
-    def __init__(self, channel=0) -> None:
-        self.channel = channel
+
+class MaxPooling(object):
+    def __init__(self, factor=2) -> None:
+        self.factor = factor
 
     def __call__(self, x):
-        return x[self.channel]
-    
+        return nn.MaxPool1d(kernel_size=self.factor, stride=self.factor)(x)
+
+class Composite(object):
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, x):
+        for transform in self.transforms:
+            x = transform(x)
+        return x
+
+
 def create_transform(
     jittering=False,
     GaussianNoise=False,
