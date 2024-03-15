@@ -13,19 +13,29 @@ from models.lstm import LSTM
 from models.eeg_net import EEGNet
 from models.gru import GRU
 from models.transformer import Transformer
+from models.mamba_eeg import MambaEEG
 from models.cnn_1d import CNN_1D
-from models.resnet_1d import ResNet_1D
 from models.cnn_rnn import CNN_RNN
-# from models.mamba_eeg import MambaEEG
-from data_utils.timeseries_transforms import Composite, Stacking, Trimming, Resample, GaussianNoise, LowPassFilter, Scaling, MaxPooling
-import matplotlib.pyplot as plt
-# from models.mamba_eeg_net import MambaDepthWiseEEG
+from models.resnet_1d import ResNet_1D
+from data_utils.timeseries_transforms import Spectrogram
+from models.mamba_eeg_net import MambaDepthWiseEEG
+from data_utils.timeseries_transforms import Composite, Trimming, MaxPooling, GaussianNoise
+from training_utils.loops import run_train, run_testing
 import wandb
 
-from training_utils.loops import run_train, run_testing
-
-
-def train(experiment_name, num_epochs=10, batch_size=64, lr=1e-3, transforms=None, device='cpu', progress_bar=True, progress=True):
+def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="my-awesome-project",
+        name=experiment_name+"_"+str(lr),
+        # track hyperparameters and run metadata
+        config={
+        "learning_rate": lr,
+        "architecture": experiment_name,
+        "batch_size": batch_size,
+        "transform": str(transforms),
+        }
+    )
 
     if experiment_name == "mlp":
 
@@ -42,7 +52,7 @@ def train(experiment_name, num_epochs=10, batch_size=64, lr=1e-3, transforms=Non
        
         model = MLP([1000 * 22, 1024, 128, 4]).to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
 
     elif experiment_name == "cnn":
 
@@ -181,7 +191,7 @@ def train(experiment_name, num_epochs=10, batch_size=64, lr=1e-3, transforms=Non
 
         model = RNN().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
 
     elif experiment_name == "lstm":
 
@@ -198,7 +208,7 @@ def train(experiment_name, num_epochs=10, batch_size=64, lr=1e-3, transforms=Non
         
         model = LSTM().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
 
     elif experiment_name == "eegnet":
 
@@ -220,8 +230,6 @@ def train(experiment_name, num_epochs=10, batch_size=64, lr=1e-3, transforms=Non
         model = EEGNet().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
         model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
-        _, test_accuracy = model.run_test(test_loader, criterion)
-        print(f"Test accuracy: {test_accuracy:.2f}%")
 
     elif experiment_name == "gru":
 
@@ -238,7 +246,7 @@ def train(experiment_name, num_epochs=10, batch_size=64, lr=1e-3, transforms=Non
         
         model = GRU().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
 
     elif experiment_name == "transformer":
 
@@ -255,7 +263,7 @@ def train(experiment_name, num_epochs=10, batch_size=64, lr=1e-3, transforms=Non
         
         model = Transformer().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
         
     elif experiment_name == "mamba":
 
@@ -272,7 +280,7 @@ def train(experiment_name, num_epochs=10, batch_size=64, lr=1e-3, transforms=Non
         
         model = MambaEEG().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
         
     elif experiment_name == "mamba_eeg":
 
@@ -302,7 +310,6 @@ def hyperparam_sweep(config=None):
     step_size = wandb.config.step_size
     gamma = wandb.config.gamma
     dropout = wandb.config.dropout
-    hidden_size = wandb.config.hidden_size
 
     transform = None
     
@@ -310,7 +317,7 @@ def hyperparam_sweep(config=None):
         val=0.1, batch_size=batch_size, transform=transform
     )
 
-    model = CNN_RNN(dropout=dropout, hidden_size=hidden_size, device='cuda')
+    model = CNN_1D(dropout=dropout, device='cuda')
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -334,10 +341,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train EEG classification models')
     parser.add_argument('experiment', type=str, help='Name of the experiment/model to train')
     parser.add_argument('--num_epochs', type=int, default=1000, help='Number of epochs for training (default: 10)')
-    parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training (default: 64)')
-    parser.add_argument('--lr', type=float, default=0.000003, help='Learning rate for optimizer (default: 0.00001)')
+    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training (default: 64)')
+    parser.add_argument('--lr', type=float, default=0.00001, help='Learning rate for optimizer (default: 0.00001)')
     parser.add_argument('--device', type=str, default="cuda", help='Apply data transformations (default: cpu)')
     parser.add_argument('--transforms', action='store_true', help='Apply data transformations (default: False)')
+    
     
     args = parser.parse_args()
 
@@ -353,8 +361,7 @@ if __name__ == "__main__":
                 "epochs": {"values": [60, 80, 100, 120]},
                 "step_size": {"values": [10, 20, 30]},
                 "gamma": {"values": [0.1, 0.2, 0.3]},
-                "dropout": {"values": [0.5, 0.6, 0.7, 0.8]},
-                "hidden_size": {"values": [64, 128, 256]}
+                "dropout": {"values": [0.5, 0.6, 0.7, 0.8]}
             },
             "early_terminate": {
                 "type": "hyperband",
@@ -370,24 +377,54 @@ if __name__ == "__main__":
 
     else:
     
-        stats = train(args.experiment, args.num_epochs, args.batch_size, args.lr, args.transforms, args.device)
+    stats = train(args.experiment, args.num_epochs, args.batch_size, args.lr, args.transforms, args.device)
+
+    # if args.experiment == 'sweep':
+
+    #     sweep_configuration = {
+    #         "method": "bayes",
+    #         "metric": {"goal": "maximize", "name": "val_accuracy"},
+    #         "parameters": {
+    #             "batch_size": {"values": [32, 64, 128]},
+    #             "lr": {"min": 0.000001, "max": 0.001, "distribution": "uniform"},
+    #             "weight_decay": {"min": 0.001, "max": 0.01, "distribution": "uniform"},
+    #             "epochs": {"values": [60, 80, 100, 120]},
+    #             "step_size": {"values": [10, 20, 30]},
+    #             "gamma": {"values": [0.1, 0.2, 0.3]},
+    #             "dropout": {"values": [0.5, 0.6, 0.7, 0.8]}
+    #         },
+    #         "early_terminate": {
+    #             "type": "hyperband",
+    #             "s": 2, 
+    #             "eta": 3,
+    #             "max_iter": 27
+    #         }
+    #     }
+
+    #     wandb.login()
+    #     sweep_id = wandb.sweep(sweep_configuration, project='c147_eeg_testing')
+    #     wandb.agent(sweep_id, function=hyperparam_sweep)
+
+    # else:
+    
+    #     stats = train(args.experiment, args.num_epochs, args.batch_size, args.lr, args.transforms, args.device)
         
-        if stats:
-            train_losses = stats["train_losses"]
-            val_losses = stats["val_losses"]
-            train_accuracies = stats["train_accuracies"]
-            val_accuracies = stats["val_accuracies"]
+    #     if stats:
+    #         train_losses = stats["train_losses"]
+    #         val_losses = stats["val_losses"]
+    #         train_accuracies = stats["train_accuracies"]
+    #         val_accuracies = stats["val_accuracies"]
 
-            plt.figure()
-            plt.plot(train_losses, label="Average train Loss")
-            plt.plot(val_losses, label="Average validation Loss")
-            plt.xlabel("Epoch")
-            plt.legend()
-            plt.show()
+    #         plt.figure()
+    #         plt.plot(train_losses, label="Average train Loss")
+    #         plt.plot(val_losses, label="Average validation Loss")
+    #         plt.xlabel("Epoch")
+    #         plt.legend()
+    #         plt.show()
 
-            plt.figure()
-            plt.plot(train_accuracies, label="Train Accuracy")
-            plt.plot(val_accuracies, label="Validation Accuracy")
-            plt.xlabel("Epoch")
-            plt.legend()
-            plt.show()
+    #         plt.figure()
+    #         plt.plot(train_accuracies, label="Train Accuracy")
+    #         plt.plot(val_accuracies, label="Validation Accuracy")
+    #         plt.xlabel("Epoch")
+    #         plt.legend()
+    #         plt.show()

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 class LSTM(nn.Module):
     
-    def __init__(self, input_size=22, hidden_size=100, num_layers=5, num_classes=4, dropout=0.4):
+    def __init__(self, input_size=22, hidden_size=100, num_layers=5, num_classes=4, dropout=0.5):
         super(LSTM, self).__init__()
 
         self.dropout = dropout
@@ -14,11 +14,12 @@ class LSTM(nn.Module):
     
     def forward(self, x):
         x, _ = self.lstm(x)
-        x = x[:, -1, :]
+        # x = x[:, -1, :]
+        x = x.mean(dim=1)
         x = self.fc(F.dropout(x, p=self.dropout))
         return x
 
-    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100):
+    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100, wandb=None):
         
         for epoch in range(num_epochs):
             self.train()
@@ -41,9 +42,13 @@ class LSTM(nn.Module):
                     pbar.update(1)
                     pbar.set_postfix(loss=loss.item())
 
+                if wandb:
+                    wandb.log({"train_loss": avg_loss/len(train_loader)})
                 print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
             
             val_loss, accuracy = self.run_eval(val_loader, criterion)
+            if wandb:
+                wandb.log({"val_loss": val_loss, "accuracy": accuracy})
             print(f"Epoch {epoch + 1} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
     
     def run_eval(self, val_loader, criterion):

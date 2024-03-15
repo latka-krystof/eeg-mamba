@@ -4,4 +4,4 @@ build/
 **.so
 eeg_data
 .DS_Store
-wandb
+wandb/

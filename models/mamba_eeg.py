@@ -7,58 +7,94 @@ from tqdm import tqdm
 class MambaEEG(nn.Module):
     pass
 
-    def __init__(self, input_dim=22, hidden_dim=128, num_layers=3, num_heads=4, dropout=0.1, num_classes=4):
+    def __init__(self, input_dim=22, hidden_dim=22, num_layers=3, num_heads=4, dropout=0.5, num_classes=4):
         super(MambaEEG, self).__init__()
         
         self.embedding = nn.Linear(input_dim, hidden_dim)
-        self.mamba = Mamba(
+        self.mamba1 = Mamba(
             d_model=hidden_dim,
             d_state=16,
-            d_conv=4,
+            d_conv=16,
             expand=2
         )
+        self.mamba2 = Mamba(
+            d_model=hidden_dim,
+            d_state=4,
+            d_conv=16,
+            expand=2
+        )
+        self.mamba3 = Mamba(
+            d_model=hidden_dim,
+            d_state=1,
+            d_conv=16,
+            expand=2
+        )
+        self.ln1 = nn.LayerNorm((1000, hidden_dim))
+        self.ln2 = nn.LayerNorm((1000, hidden_dim))
+        self.ln3 = nn.LayerNorm((1000, hidden_dim))
         self.fc = nn.Linear(hidden_dim, num_classes)
+        
+        self.dropout1 = nn.Dropout(0.5)
+        self.dropout2 = nn.Dropout(0.5)
+        self.dropout3 = nn.Dropout(0.5)
+        
         
     def forward(self, x):
         # print("Input shape: ", x.shape)
         x = torch.transpose(x, 1,2)
+        
         x = self.embedding(x)
         # print("Embed shape: ", x.shape)
-        x = self.mamba(x)
+        x = self.mamba1(x)
+        x = self.dropout1(x)
+        x = self.ln1(x)
+        
+        x = self.mamba2(x)
+        x = self.dropout2(x)
+        x = self.ln2(x)
+        
+        x = self.mamba3(x)
+        x = self.dropout3(x)
+        x = self.ln3(x)
         # print("Mamba shape: ", x.shape)
+        
         x = x.mean(dim=1)
-        # x = x[:, -1, :]
+        # x = x[:, 0, :]
         # print("Before forward shape: ", x.shape)
         x = self.fc(x)
         # print("After forward shape: ", x.shape)
         return x
         
-    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100):
+    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100, wandb=None):
         
         for epoch in range(num_epochs):
             self.train()
 
-            # with tqdm(total=len(train_loader), desc=f'Epoch {epoch + 1}/{num_epochs}',
-            #       position=0, leave=True) as pbar:
+            with tqdm(total=len(train_loader), desc=f'Epoch {epoch + 1}/{num_epochs}',
+                  position=0, leave=True) as pbar:
                 
-            avg_loss = 0
-            for batch in train_loader:
-                inputs, labels = batch
-                inputs = inputs.float()
-                labels = labels.long()
-                optimizer.zero_grad()
-                outputs = self.forward(inputs)
-                loss = criterion(outputs, labels)
-                loss.backward()
-                optimizer.step()
-                avg_loss += loss
+                avg_loss = 0
+                for batch in train_loader:
+                    inputs, labels = batch
+                    inputs = inputs.float()
+                    labels = labels.long()
+                    optimizer.zero_grad()
+                    outputs = self.forward(inputs)
+                    loss = criterion(outputs, labels)
+                    loss.backward()
+                    optimizer.step()
+                    avg_loss += loss
 
-                # pbar.update(1)
-                # pbar.set_postfix(loss=loss.item())
+                pbar.update(1)
+                pbar.set_postfix(loss=loss.item())
 
-            print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
-            
+                if wandb:
+                        wandb.log({"train_loss": avg_loss/len(train_loader)})
+                print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
+                
             val_loss, accuracy = self.run_eval(val_loader, criterion)
+            if wandb:
+                wandb.log({"val_loss": val_loss, "accuracy": accuracy})
             print(f"Epoch {epoch + 1} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
     
     def run_eval(self, val_loader, criterion):

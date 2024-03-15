@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 class Transformer(nn.Module):
 
-    def __init__(self, input_dim=1000, hidden_dim=128, num_layers=3, num_heads=4, dropout=0.1, num_classes=4):
+    def __init__(self, input_dim=1000, hidden_dim=4, num_layers=4, num_heads=4, dropout=0.5, num_classes=4):
         super(Transformer, self).__init__()
 
         self.embedding = nn.Linear(input_dim, hidden_dim)
@@ -24,7 +24,7 @@ class Transformer(nn.Module):
         x = self.fc(x)
         return x
     
-    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100):
+    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100, wandb=None):
         
         for epoch in range(num_epochs):
             self.train()
@@ -47,9 +47,13 @@ class Transformer(nn.Module):
                     pbar.update(1)
                     pbar.set_postfix(loss=loss.item())
 
+                if wandb:
+                    wandb.log({"train_loss": avg_loss/len(train_loader)})
                 print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
             
             val_loss, accuracy = self.run_eval(val_loader, criterion)
+            if wandb:
+                wandb.log({"val_loss": val_loss, "accuracy": accuracy})
             print(f"Epoch {epoch + 1} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
     
     def run_eval(self, val_loader, criterion):
