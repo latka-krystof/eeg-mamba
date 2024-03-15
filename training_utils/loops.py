@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 import wandb
 
-def run_testing(model, test_loader, criterion, unsqueeze=False):
+def run_testing(model, test_loader, criterion):
 
     model.eval().to(model.device)
 
@@ -13,16 +13,11 @@ def run_testing(model, test_loader, criterion, unsqueeze=False):
         for batch in test_loader:
 
             inputs, labels = batch
-            inputs = inputs.float()
-            labels = labels.long()
 
-            inputs = inputs.to(model.device)
-            labels = labels.to(model.device)
+            inputs = inputs.float().to(model.device)
+            labels = labels.long().to(model.device)
             
-            if unsqueeze:
-                outputs = model.forward(inputs.unsqueeze(1))
-            else:
-                outputs = model.forward(inputs)
+            outputs = model.forward(inputs)
 
             _, predictions = torch.max(outputs, dim=1)
             num_correct += (predictions == labels).sum().item()
@@ -31,7 +26,7 @@ def run_testing(model, test_loader, criterion, unsqueeze=False):
     accuracy = num_correct / num_samples * 100
     return accuracy
 
-def run_eval(model, train_loader, val_loader, criterion, unsqueeze=False):
+def run_eval(model, train_loader, val_loader, criterion):
 
         model.eval().to(model.device)
 
@@ -45,17 +40,11 @@ def run_eval(model, train_loader, val_loader, criterion, unsqueeze=False):
             for batch in val_loader:
 
                 inputs, labels = batch
-                inputs = inputs.float()
-                labels = labels.long()
 
-                inputs = inputs.to(model.device)
-                labels = labels.to(model.device)
+                inputs = inputs.float().to(model.device)
+                labels = labels.long().to(model.device)
                 
-                if unsqueeze:
-                    outputs = model.forward(inputs.unsqueeze(1))
-                else:
-                    outputs = model.forward(inputs)
-
+                outputs = model.forward(inputs)
 
                 val_loss += criterion(outputs, labels)
 
@@ -69,13 +58,10 @@ def run_eval(model, train_loader, val_loader, criterion, unsqueeze=False):
                 inputs = inputs.float()
                 labels = labels.long()
 
-                inputs = inputs.to(model.device)
-                labels = labels.to(model.device)
+                inputs = inputs.float().to(model.device)
+                labels = labels.long().to(model.device)
 
-                if unsqueeze:
-                    outputs = model.forward(inputs.unsqueeze(1))
-                else:
-                    outputs = model.forward(inputs)
+                outputs = model.forward(inputs)
 
                 _, predictions = torch.max(outputs, dim=1)
                 num_correct_train += (predictions == labels).sum().item()
@@ -87,7 +73,7 @@ def run_eval(model, train_loader, val_loader, criterion, unsqueeze=False):
 
         return avg_loss, accuracy_val, accuracy_train
 
-def run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=100, unsqueeze=False, progress_bar=True, progress=True, sweep=False):
+def run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=100, progress_bar=True, progress=True, wandb_track=False):
         
         train_losses = []
         val_losses = []
@@ -105,17 +91,13 @@ def run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, 
                     avg_loss = 0
                     for batch in train_loader:
                         inputs, labels = batch
-                        inputs = inputs.float()
-                        labels = labels.long()
 
-                        inputs = inputs.to(model.device)
-                        labels = labels.to(model.device)
+                        inputs = inputs.float().to(model.device)
+                        labels = labels.long().to(model.device)
 
                         optimizer.zero_grad()
-                        if unsqueeze:
-                            outputs = model.forward(inputs.unsqueeze(1))
-                        else:
-                            outputs = model.forward(inputs)
+
+                        outputs = model.forward(inputs)
 
                         loss = criterion(outputs, labels)
                         loss.backward()
@@ -133,17 +115,14 @@ def run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, 
                 avg_loss = 0
                 for batch in train_loader:
                     inputs, labels = batch
-                    inputs = inputs.float()
-                    labels = labels.long()
 
-                    inputs = inputs.to(model.device)
-                    labels = labels.to(model.device)
+                    inputs = inputs.float().to(model.device)
+                    labels = labels.long().to(model.device)
 
                     optimizer.zero_grad()
-                    if unsqueeze:
-                        outputs = model.forward(inputs.unsqueeze(1))
-                    else:
-                        outputs = model.forward(inputs)
+                        
+                    outputs = model.forward(inputs)
+
                     loss = criterion(outputs, labels)
                     loss.backward()
                     optimizer.step()
@@ -156,9 +135,9 @@ def run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, 
                 if progress:
                     print(f"Epoch {epoch + 1} - Avg Train Loss: {train_loss:.4f}")
             
-            val_loss, val_accuracy, train_accuracy = run_eval(model, train_loader, val_loader, criterion, unsqueeze=unsqueeze)
+            val_loss, val_accuracy, train_accuracy = run_eval(model, train_loader, val_loader, criterion)
 
-            if sweep:
+            if wandb_track:
                 wandb.log({'train_loss': train_loss, 'val_loss': val_loss, 
                     'val_accuracy': val_accuracy, 'train_accuracy': train_accuracy})
             

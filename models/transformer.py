@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 class Transformer(nn.Module):
 
-    def __init__(self, input_dim=1000, hidden_dim=4, num_layers=4, num_heads=4, dropout=0.5, num_classes=4):
+    def __init__(self, input_dim=1000, hidden_dim=4, num_layers=4, num_heads=4, dropout=0.5, num_classes=4, device='cuda'):
         super(Transformer, self).__init__()
 
         self.embedding = nn.Linear(input_dim, hidden_dim)
@@ -14,6 +14,7 @@ class Transformer(nn.Module):
                                                  dropout=dropout, batch_first=True)
         self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers)
         self.fc = nn.Linear(hidden_dim, num_classes)
+        self.device = device
 
     def forward(self, x):
 
@@ -23,60 +24,3 @@ class Transformer(nn.Module):
         x = x.mean(dim=0)  # Aggregate over time
         x = self.fc(x)
         return x
-    
-    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100, wandb=None):
-        
-        for epoch in range(num_epochs):
-            self.train()
-
-            with tqdm(total=len(train_loader), desc=f'Epoch {epoch + 1}/{num_epochs}',
-                  position=0, leave=True) as pbar:
-                
-                avg_loss = 0
-                for batch in train_loader:
-                    inputs, labels = batch
-                    inputs = inputs.float()
-                    labels = labels.long()
-                    optimizer.zero_grad()
-                    outputs = self.forward(inputs)
-                    loss = criterion(outputs, labels)
-                    loss.backward()
-                    optimizer.step()
-                    avg_loss += loss
-
-                    pbar.update(1)
-                    pbar.set_postfix(loss=loss.item())
-
-                if wandb:
-                    wandb.log({"train_loss": avg_loss/len(train_loader)})
-                print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
-            
-            val_loss, accuracy = self.run_eval(val_loader, criterion)
-            if wandb:
-                wandb.log({"val_loss": val_loss, "accuracy": accuracy})
-            print(f"Epoch {epoch + 1} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
-    
-    def run_eval(self, val_loader, criterion):
-
-        self.eval()
-        with torch.no_grad():
-            val_loss = 0.0
-            num_correct = 0
-            num_samples = 0
-
-            for batch in val_loader:
-
-                inputs, labels = batch
-                inputs = inputs.float()
-                labels = labels.long()
-                outputs = self.forward(inputs)
-                val_loss += criterion(outputs, labels)
-
-                _, predictions = torch.max(outputs, dim=1)
-                num_correct += (predictions == labels).sum().item()
-                num_samples += len(inputs)
-
-        avg_loss = val_loss / len(val_loader)
-        accuracy = num_correct / num_samples
-
-        return avg_loss, accuracy

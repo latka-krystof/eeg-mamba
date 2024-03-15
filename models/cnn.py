@@ -31,7 +31,7 @@ class CNN(nn.Module):
         )
 
         self.fc1 = nn.Sequential(
-            nn.Linear(15744, 1024),
+            nn.Linear(3712, 1024),
             nn.ReLU(),
             nn.Dropout(dropout)
         )
@@ -45,6 +45,7 @@ class CNN(nn.Module):
         self.fc3 = nn.Linear(256, num_classes)
 
     def forward(self, x):
+        x = x.unsqueeze(1)
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)

@@ -35,11 +35,10 @@ class EEGDataset(Dataset):
         return x, self.y[idx]
 
 class NewEEGDataset(Dataset):
-    def __init__(self, samples, labels, persons, transform=None, device='cpu', mode='train', noise=True):
+    def __init__(self, samples, labels, persons, device='cpu', mode='train', noise=True):
         self.X = torch.tensor(samples).to(device)
         self.y = torch.tensor(labels).long().to(device)
         self.persons = torch.tensor(persons).long().to(device)
-        self.transform = transform
         self.mode = mode
 
         if self.mode == 'train': 
@@ -92,8 +91,6 @@ class NewEEGDataset(Dataset):
     def __getitem__(self, idx):
         x = self.X[idx]
         # Apply any post-processing transforms
-        if self.transform is not None:
-            x = self.transform(x)
         return x, self.y[idx]
 
 def generate_dataloaders(val=0.2, batch_size=64, transform=None):
@@ -110,9 +107,9 @@ def generate_dataloaders(val=0.2, batch_size=64, transform=None):
     train_labels, val_labels = train_val_labels[:split_idx], train_val_labels[split_idx:]
     train_persons, val_persons = train_val_persons[:split_idx], train_val_persons[split_idx:]
 
-    train_dataset = NewEEGDataset(train_samples, train_labels, train_persons, transform=transform, mode='train')
-    val_dataset = NewEEGDataset(val_samples, val_labels, val_persons, transform=transform, mode='val')
-    test_dataset = NewEEGDataset(test_samples, test_labels, test_persons, transform=transform, mode='test')
+    train_dataset = NewEEGDataset(train_samples, train_labels, train_persons, mode='train')
+    val_dataset = NewEEGDataset(val_samples, val_labels, val_persons, mode='val')
+    test_dataset = NewEEGDataset(test_samples, test_labels, test_persons, mode='test')
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
