@@ -11,7 +11,14 @@ class MambaDepthWiseEEG(nn.Module):
         super(MambaDepthWiseEEG, self).__init__()
         
         self.embedding = nn.ModuleList([nn.Linear(1, hidden_dim) for i in range(input_dim)])
-        self.mambas = nn.ModuleList([Mamba(
+        self.mambas1 = nn.ModuleList([Mamba(
+            d_model=hidden_dim,
+            d_state=16,
+            d_conv=4,
+            expand=2
+        ) for i in range(input_dim)])
+        
+        self.mambas2 = nn.ModuleList([Mamba(
             d_model=hidden_dim,
             d_state=16,
             d_conv=4,
@@ -30,15 +37,24 @@ class MambaDepthWiseEEG(nn.Module):
         
     def forward(self, x):
         x = torch.transpose(x, 1,2)
+        
         x_mamba = []
-        for i, embedding, mamba in zip(range(x.shape[1]), self.embedding, self.mambas):
+        for i, embedding, mamba in zip(range(x.shape[1]), self.embedding, self.mambas1):
             # print(x[:, :, i].unsqueeze(2).shape, embedding)
             x_t = embedding(x[:, :, i].unsqueeze(2))
+            # print(x_t.shape)
             x_t = mamba(x_t)
             x_t = x_t.mean(dim=1)
+            # print(x_t.shape)
             # x_t = x_t[:, -1, :]
             # x_t = fc(x_t)
             x_mamba.append(x_t)
+            
+        # for i, mamba in enumerate(self.mambas2):
+        #     x_mamba[i] = mamba(x_mamba[i]).mean(dim=1)
+            # x_t = x_t
+            # x_t = x_t[:, -1, :]
+            # x_t = fc(x_t)
         
         
         # print(x_mamba[0].shape)
@@ -53,7 +69,7 @@ class MambaDepthWiseEEG(nn.Module):
         
         return x
         
-    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100):
+    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100, wandb=None):
         
         for epoch in range(num_epochs):
             self.train()
@@ -76,11 +92,15 @@ class MambaDepthWiseEEG(nn.Module):
                     pbar.update(1)
                     pbar.set_postfix(loss=loss.item())
 
-            print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
+                if wandb:
+                    wandb.log({"train_loss": avg_loss/len(train_loader)})
+                print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
             
             val_loss, accuracy = self.run_eval(val_loader, criterion)
+            if wandb:
+                wandb.log({"val_loss": val_loss, "accuracy": accuracy})
             print(f"Epoch {epoch + 1} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
-    
+        
     def run_eval(self, val_loader, criterion):
 
         self.eval()

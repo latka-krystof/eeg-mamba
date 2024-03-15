@@ -15,8 +15,21 @@ from models.transformer import Transformer
 from models.mamba_eeg import MambaEEG
 from data_utils.timeseries_transforms import Spectrogram
 from models.mamba_eeg_net import MambaDepthWiseEEG
+import wandb
 
 def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="my-awesome-project",
+        name=experiment_name+"_"+str(lr),
+        # track hyperparameters and run metadata
+        config={
+        "learning_rate": lr,
+        "architecture": experiment_name,
+        "batch_size": batch_size,
+        "transform": str(transforms),
+        }
+    )
 
     if experiment_name == "mlp":
 
@@ -33,7 +46,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
        
         model = MLP([1000 * 22, 1024, 128, 4]).to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
 
     elif experiment_name == "cnn":
 
@@ -50,7 +63,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         
         model = CNN().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
 
     elif experiment_name == "rnn":
 
@@ -67,7 +80,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
 
         model = RNN().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
 
     elif experiment_name == "lstm":
 
@@ -84,7 +97,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         
         model = LSTM().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
 
     elif experiment_name == "eegnet":
 
@@ -101,7 +114,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         
         model = EEGNet().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
 
     elif experiment_name == "gru":
 
@@ -118,7 +131,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         
         model = GRU().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
 
     elif experiment_name == "transformer":
 
@@ -135,7 +148,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         
         model = Transformer().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
         
     elif experiment_name == "mamba":
 
@@ -152,7 +165,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         
         model = MambaEEG().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
         
     elif experiment_name == "mamba_eeg":
 
@@ -169,7 +182,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         
         model = MambaDepthWiseEEG().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
     
         
         
@@ -178,8 +191,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train EEG classification models')
     parser.add_argument('experiment', type=str, help='Name of the experiment/model to train')
     parser.add_argument('--num_epochs', type=int, default=1000, help='Number of epochs for training (default: 10)')
-    parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training (default: 64)')
-    parser.add_argument('--lr', type=float, default=0.000003, help='Learning rate for optimizer (default: 0.00001)')
+    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training (default: 64)')
+    parser.add_argument('--lr', type=float, default=0.00001, help='Learning rate for optimizer (default: 0.00001)')
     parser.add_argument('--device', type=str, default="cuda", help='Apply data transformations (default: cpu)')
     parser.add_argument('--transforms', action='store_true', help='Apply data transformations (default: False)')
     

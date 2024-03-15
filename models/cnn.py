@@ -64,7 +64,7 @@ class CNN(nn.Module):
         x = self.fc4(x)
         return x
     
-    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100):
+    def run_train(self, train_loader, val_loader, criterion, optimizer, num_epochs=100, wandb=None):
         
         for epoch in range(num_epochs):
             self.train()
@@ -87,9 +87,13 @@ class CNN(nn.Module):
                     pbar.update(1)
                     pbar.set_postfix(loss=loss.item())
 
+                if wandb:
+                    wandb.log({"train_loss": avg_loss/len(train_loader)})
                 print(f"Epoch {epoch + 1} - Avg Train Loss: {avg_loss/len(train_loader):.4f}")
             
             val_loss, accuracy = self.run_eval(val_loader, criterion)
+            if wandb:
+                wandb.log({"val_loss": val_loss, "accuracy": accuracy})
             print(f"Epoch {epoch + 1} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
     
     def run_eval(self, val_loader, criterion):
