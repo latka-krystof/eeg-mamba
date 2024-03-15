@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 import torch.nn.functional as F
+import wandb
 
 class DepthwiseSeparableConv2D(nn.Module):
 
@@ -35,8 +36,10 @@ class DepthwiseSeparableConv2D(nn.Module):
 class EEGNet(nn.Module):
 
     def __init__(self, num_classes=4, chans=22, samples=1000,
-                    kernel_length=64, f1=8, d=2, f2=16, dropout=0.5):
+                    kernel_length=64, f1=8, d=2, f2=16, dropout=0.5, device='cuda'):
         super(EEGNet, self).__init__()
+
+        self.device = device
 
         self.block1 = nn.Sequential(
             nn.Conv2d(1, f1, kernel_size=(chans, kernel_length), padding=(0, kernel_length // 2), bias=False),
@@ -56,10 +59,10 @@ class EEGNet(nn.Module):
             nn.Dropout(dropout)
         )
 
-        self.dense = nn.Linear(f2 * (samples // 32), num_classes)
+        self.dense = nn.Linear(f2 * (samples // 32 + 1), num_classes)
 
     def forward(self, x):
-
+        
         x = self.block1(x)
         x = self.block2(x)
         x = torch.flatten(x, start_dim=1)
@@ -71,23 +74,23 @@ class EEGNet(nn.Module):
         for epoch in range(num_epochs):
             self.train()
 
-            # with tqdm(total=len(train_loader), desc=f'Epoch {epoch + 1}/{num_epochs}',
-            #       position=0, leave=True) as pbar:
+            with tqdm(total=len(train_loader), desc=f'Epoch {epoch + 1}/{num_epochs}',
+                  position=0, leave=True) as pbar:
                 
-            avg_loss = 0
-            for batch in train_loader:
-                inputs, labels = batch
-                inputs = inputs.float().unsqueeze(1)
-                labels = labels.long()
-                optimizer.zero_grad()
-                outputs = self.forward(inputs)
-                loss = criterion(outputs, labels)
-                loss.backward()
-                optimizer.step()
-                avg_loss += loss
+                avg_loss = 0
+                for batch in train_loader:
+                    inputs, labels = batch
+                    inputs = inputs.float().unsqueeze(1)
+                    labels = labels.long()
+                    optimizer.zero_grad()
+                    outputs = self.forward(inputs)
+                    loss = criterion(outputs, labels)
+                    loss.backward()
+                    optimizer.step()
+                    avg_loss += loss
 
-                # pbar.update(1)
-                # pbar.set_postfix(loss=loss.item())
+                    pbar.update(1)
+                    pbar.set_postfix(loss=loss.item())
 
             if wandb:
                 wandb.log({"train_loss": avg_loss/len(train_loader)})
@@ -97,6 +100,8 @@ class EEGNet(nn.Module):
             if wandb:
                 wandb.log({"val_loss": val_loss, "accuracy": accuracy})
             print(f"Epoch {epoch + 1} - Avg Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")
+
+            # wandb.log({'train_loss': avg_loss/len(train_loader), 'val_loss': val_loss, 'val_accuracy': accuracy})
     
     def run_eval(self, val_loader, criterion):
 
@@ -119,6 +124,31 @@ class EEGNet(nn.Module):
                 num_samples += len(inputs)
 
         avg_loss = val_loss / len(val_loader)
+        accuracy = num_correct / num_samples
+
+        return avg_loss, accuracy
+
+    def run_test(self, test_loader, criterion):
+
+        self.eval()
+        with torch.no_grad():
+            test_loss = 0.0
+            num_correct = 0
+            num_samples = 0
+
+            for batch in test_loader:
+
+                inputs, labels = batch
+                inputs = inputs.float().unsqueeze(1)
+                labels = labels.long()
+                outputs = self.forward(inputs)
+                test_loss += criterion(outputs, labels)
+
+                _, predictions = torch.max(outputs, dim=1)
+                num_correct += (predictions == labels).sum().item()
+                num_samples += len(inputs)
+
+        avg_loss = test_loss / len(test_loader)
         accuracy = num_correct / num_samples
 
         return avg_loss, accuracy

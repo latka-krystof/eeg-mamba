@@ -3,7 +3,8 @@ import argparse
 from torch.utils.data import Dataset, DataLoader
 from torch import nn
 from torch import optim
-from dataset import EEGDataset
+from torch.optim.lr_scheduler import StepLR
+from dataset import EEGDataset, NewEEGDataset, generate_dataloaders
 import numpy as np
 from models.mlp import MLP
 from models.rnn import RNN
@@ -13,8 +14,13 @@ from models.eeg_net import EEGNet
 from models.gru import GRU
 from models.transformer import Transformer
 from models.mamba_eeg import MambaEEG
+from models.cnn_1d import CNN_1D
+from models.cnn_rnn import CNN_RNN
+from models.resnet_1d import ResNet_1D
 from data_utils.timeseries_transforms import Spectrogram
 from models.mamba_eeg_net import MambaDepthWiseEEG
+from data_utils.timeseries_transforms import Composite, Trimming, MaxPooling, GaussianNoise
+from training_utils.loops import run_train, run_testing
 import wandb
 
 def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
@@ -51,19 +57,124 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
     elif experiment_name == "cnn":
 
         if transforms:
-            transform = Spectrogram(n_fft=256, win_length=256, hop_length=16, window_fn=torch.hamming_window)
+            train_transform = Composite([
+                Trimming(0,750),
+                MaxPooling(2),
+                GaussianNoise(),
+            ])
+            test_transform = Composite([
+                Trimming(0,750),
+                MaxPooling(2),
+            ])
         else:
-            transform = None
+            train_transform = None
+            test_transform = None
 
-        train_dataset = EEGDataset(train=True, transform=transform, device=device)
-        test_dataset = EEGDataset(train=False, transform=transform, device=device)
+        train_dataset = EEGDataset(train=True, transform=train_transform)
+        test_dataset = EEGDataset(train=False, transform=test_transform)
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
         criterion = nn.CrossEntropyLoss()
+        model = CNN(device=device)
+        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-1)
+        scheduler = StepLR(optimizer, step_size=25, gamma=0.5)
+        train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, test_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, unsqueeze=True)
+
+        return {
+            "train_losses": train_losses,
+            "test_losses": val_losses,
+            "train_accuracies": train_accuracies,
+            "test_accuracies": val_accuracies
+        }
+    
+    elif experiment_name == "cnn_1d":
+      
+        if transforms:
+            transform = None
+        else:
+            transform = None
         
-        model = CNN().to(device)
-        optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
+        train_loader, val_loader, test_loader = generate_dataloaders(
+            val=0.1, batch_size=batch_size, transform=transform
+        )
+
+        model = CNN_1D(device=device)
+
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-1)
+        scheduler = StepLR(optimizer, step_size=25, gamma=0.5)
+
+        train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, unsqueeze=False, progress_bar=progress_bar, progress=progress)
+
+        test_accuracy = run_testing(model, test_loader, criterion, unsqueeze=False)
+        print(f"Test accuracy: {test_accuracy:.2f}%")
+
+        return {
+            "train_losses": train_losses,
+            "val_losses": val_losses,
+            "train_accuracies": train_accuracies,
+            "val_accuracies": val_accuracies
+        }
+
+    elif experiment_name == "cnn_rnn":
+      
+        if transforms:
+            transform = None
+        else:
+            transform = None
+        
+        train_loader, val_loader, test_loader = generate_dataloaders(
+            val=0.1, batch_size=batch_size, transform=transform
+        )
+
+        model = CNN_RNN(device=device)
+
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-1)
+        scheduler = StepLR(optimizer, step_size=25, gamma=0.5)
+
+        train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, unsqueeze=False, progress_bar=progress_bar, progress=progress)
+
+        test_accuracy = run_testing(model, test_loader, criterion, unsqueeze=False)
+        print(f"Test accuracy: {test_accuracy:.2f}%")
+
+        return {
+            "train_losses": train_losses,
+            "val_losses": val_losses,
+            "train_accuracies": train_accuracies,
+            "val_accuracies": val_accuracies
+        }
+
+    elif experiment_name == "resnet_1d":
+            
+        if transforms:
+            transform = None
+        else:
+            transform = None
+        
+        train_loader, val_loader, test_loader = generate_dataloaders(
+            val=0.1, batch_size=batch_size, transform=transform
+        )
+
+        model = ResNet_1D(device=device)
+
+        criterion = nn.CrossEntropyLoss()
+        # optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-1)
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-1)
+        scheduler = StepLR(optimizer, step_size=25, gamma=0.1)
+
+        train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, unsqueeze=False)
+
+        test_accuracy = run_testing(model, test_loader, criterion, unsqueeze=False)
+        print(f"Test accuracy: {test_accuracy:.2f}%")
+
+        return {
+            "train_losses": train_losses,
+            "val_losses": val_losses,
+            "train_accuracies": train_accuracies,
+            "val_accuracies": val_accuracies
+        }
+
 
     elif experiment_name == "rnn":
 
@@ -106,15 +217,19 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         else:
             transform = None
 
-        train_dataset = EEGDataset(train=True, transform=transform, device=device)
-        test_dataset = EEGDataset(train=False, transform=transform, device=device)
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-        criterion = nn.CrossEntropyLoss()
+        train_loader, val_loader, test_loader = generate_dataloaders(
+            val=0.1, batch_size=batch_size, transform=transform
+        )
+
+        criterion = nn.CrossEntropyLoss()        
+        model = EEGNet(device=device, samples=250)
+        
         
         model = EEGNet().to(device)
+
+        model = EEGNet().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
 
     elif experiment_name == "gru":
 
@@ -182,7 +297,7 @@ def train(experiment_name, num_epochs, batch_size, lr, transforms, device):
         
         model = MambaDepthWiseEEG().to(device)
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs, wandb=wandb)
+        model.run_train(train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
     
         
         
@@ -196,7 +311,57 @@ if __name__ == "__main__":
     parser.add_argument('--device', type=str, default="cuda", help='Apply data transformations (default: cpu)')
     parser.add_argument('--transforms', action='store_true', help='Apply data transformations (default: False)')
     
+    
     args = parser.parse_args()
     
-    train(args.experiment, args.num_epochs, args.batch_size, args.lr, args.transforms, args.device)
+    stats = train(args.experiment, args.num_epochs, args.batch_size, args.lr, args.transforms, args.device)
+
+    # if args.experiment == 'sweep':
+
+    #     sweep_configuration = {
+    #         "method": "bayes",
+    #         "metric": {"goal": "maximize", "name": "val_accuracy"},
+    #         "parameters": {
+    #             "batch_size": {"values": [32, 64, 128]},
+    #             "lr": {"min": 0.000001, "max": 0.001, "distribution": "uniform"},
+    #             "weight_decay": {"min": 0.001, "max": 0.01, "distribution": "uniform"},
+    #             "epochs": {"values": [60, 80, 100, 120]},
+    #             "step_size": {"values": [10, 20, 30]},
+    #             "gamma": {"values": [0.1, 0.2, 0.3]},
+    #             "dropout": {"values": [0.5, 0.6, 0.7, 0.8]}
+    #         },
+    #         "early_terminate": {
+    #             "type": "hyperband",
+    #             "s": 2, 
+    #             "eta": 3,
+    #             "max_iter": 27
+    #         }
+    #     }
+
+    #     wandb.login()
+    #     sweep_id = wandb.sweep(sweep_configuration, project='c147_eeg_testing')
+    #     wandb.agent(sweep_id, function=hyperparam_sweep)
+
+    # else:
     
+    #     stats = train(args.experiment, args.num_epochs, args.batch_size, args.lr, args.transforms, args.device)
+        
+    #     if stats:
+    #         train_losses = stats["train_losses"]
+    #         val_losses = stats["val_losses"]
+    #         train_accuracies = stats["train_accuracies"]
+    #         val_accuracies = stats["val_accuracies"]
+
+    #         plt.figure()
+    #         plt.plot(train_losses, label="Average train Loss")
+    #         plt.plot(val_losses, label="Average validation Loss")
+    #         plt.xlabel("Epoch")
+    #         plt.legend()
+    #         plt.show()
+
+    #         plt.figure()
+    #         plt.plot(train_accuracies, label="Train Accuracy")
+    #         plt.plot(val_accuracies, label="Validation Accuracy")
+    #         plt.xlabel("Epoch")
+    #         plt.legend()
+    #         plt.show()
