@@ -117,11 +117,11 @@ def train(experiment_name, num_epochs, batch_size, lr, device, wandb_track):
             val=0.1, batch_size=batch_size
         )
 
-        model = CNN_RNN(device=device)
+        model = CNN_RNN(device=device, hidden_size=128, dropout=0.6)
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-1)
-        scheduler = StepLR(optimizer, step_size=25, gamma=0.5)
+        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=0.008)
+        scheduler = StepLR(optimizer, step_size=20, gamma=0.3)
 
         train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, progress_bar=True, progress=True, wandb_track=wandb_track)
 
