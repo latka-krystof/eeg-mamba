@@ -262,7 +262,7 @@ def train(experiment_name, num_epochs, batch_size, lr, device, wandb_track):
             val=0.1, batch_size=batch_size
         )
 
-        model = GRU(device=device)
+        model = Transformer(device=device)
         criterion = nn.CrossEntropyLoss()
 
         optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-1)
