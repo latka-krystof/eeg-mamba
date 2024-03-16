@@ -290,7 +290,9 @@ def train(experiment_name, num_epochs, batch_size, lr, device, wandb_track):
         criterion = nn.CrossEntropyLoss()
 
         optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-1)
-        scheduler = StepLR(optimizer, step_size=25, gamma=0.1)
+        scheduler = StepLR(optimizer, step_size=12, gamma=0.1)
+        # scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50, eta_min=0.000001)
+
 
         train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, wandb_track=wandb_track)
 
