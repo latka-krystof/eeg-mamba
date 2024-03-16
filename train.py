@@ -217,8 +217,8 @@ def train(experiment_name, num_epochs, batch_size, lr, device, wandb_track):
         criterion = nn.CrossEntropyLoss()        
         model = EEGNet(device=device, samples=250)
 
-        optimizer = optim.AdamW(model.parameters(), lr=lr)
-        scheduler = StepLR(optimizer, step_size=25, gamma=0.1)
+        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=0.001)
+        scheduler = StepLR(optimizer, step_size=20, gamma=0.3)
 
         train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=num_epochs, wandb_track=wandb_track)
 
@@ -324,15 +324,15 @@ def hyperparam_sweep(config=None):
         val=0.1, batch_size=batch_size, transform=transform
     )
 
-    model = CNN_1D(dropout=dropout, device='cuda')
+    model = MLP([250 * 22, 1024, 128, 4], dropout=dropout, device='cuda')
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
 
-    train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=epochs, unsqueeze=False, progress_bar=True, progress=True, sweep=True)
+    train_losses, val_losses, train_accuracies, val_accuracies = run_train(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=epochs, progress_bar=True, progress=True, wandb_track=True)
 
-    test_accuracy = run_testing(model, test_loader, criterion, unsqueeze=False)
+    test_accuracy = run_testing(model, test_loader, criterion)
     print(f"Test accuracy: {test_accuracy:.2f}%")
 
     return {

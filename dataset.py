@@ -44,9 +44,13 @@ class NewEEGDataset(Dataset):
         if self.mode == 'train': 
             
             # Apply data augmentation when loading training set
-            
             total_X = None
             total_y = None
+
+            # indices = np.where(self.persons == 0)[0]
+
+            # self.X = self.X[indices]
+            # self.y = self.y[indices]
 
             # Trimming
             X_trim = self.X[:, :, 0:500]
@@ -76,6 +80,11 @@ class NewEEGDataset(Dataset):
             self.y = total_y
 
         else:
+
+            # indices = np.where(self.persons == 3)[0]
+            # self.X = self.X[indices]
+            # self.y = self.y[indices]
+
             # Simple pre-processing to have matching dimensions with training set
             
             # Trimming

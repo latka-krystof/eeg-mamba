@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 class LSTM(nn.Module):
     
-    def __init__(self, input_size=22, hidden_size=100, num_layers=5, num_classes=4, dropout=0.5, device='cuda'):
+    def __init__(self, input_size=22, hidden_size=128, num_layers=5, num_classes=4, dropout=0.4, device='cuda'):
         super(LSTM, self).__init__()
 
         self.dropout = dropout

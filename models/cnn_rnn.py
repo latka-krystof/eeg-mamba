@@ -45,7 +45,7 @@ class CNN_RNN(nn.Module):
             nn.Linear(hidden_size, num_classes)
         )
 
-        self.gru = nn.GRU(11, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(11, hidden_size, num_layers, batch_first=True)
 
     def forward(self, x):
 
@@ -53,7 +53,7 @@ class CNN_RNN(nn.Module):
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
-        x, _ = self.gru(x)
+        x, _ = self.lstm(x)
         x = x[:, -1, :]
         x = self.fc(x)
         return x
